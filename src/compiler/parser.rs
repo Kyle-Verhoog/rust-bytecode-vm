@@ -18,16 +18,23 @@ pub enum TokenType {
     LeftParen,
     RightParen,
     Plus,
+    PlusEqual,
     Minus,
+    MinusEqual,
     Star,
+    StarEqual,
     Slash,
+    SlashEqual,
     Percent,
     StarStar,
     And,
-    Pipe,
-    Caret,
     AndAnd,
+    AndEqual,
+    Pipe,
+    PipeEqual,
     PipePipe,
+    Caret,
+    CaretEqual,
     Semicolon,
     Equal,
     EqualEqual,
@@ -97,6 +104,11 @@ impl Token {
             TokenType::Double => 0,
             TokenType::String => 0,
             TokenType::Null => 0,
+
+            TokenType::PlusEqual => 0,
+            TokenType::MinusEqual => 0,
+            TokenType::StarEqual => 0,
+            TokenType::SlashEqual => 0,
 
             TokenType::Equal => 1,
             TokenType::PipePipe => 2,
@@ -207,14 +219,16 @@ impl<'a> Lexer<'a> {
 
         while let Some(c) = self.next_char() {
             macro_rules! or2 {
-                ($char:expr, $typ:expr, $typ2:expr) => {{
-                    if let Some(c) = self.peek_char() {
-                        if *c == $char {
-                            self.next_char();
-                            token!($typ2);
+                ($deftyp:expr, $opts:expr) => {{
+                    for (ch, typ) in $opts.iter() {
+                        if let Some(c) = self.peek_char() {
+                            if *c == *ch {
+                                self.next_char();
+                                return token!(*typ);
+                            }
                         }
                     }
-                    token!($typ);
+                    token!($deftyp);
                 }};
             }
 
@@ -243,7 +257,13 @@ impl<'a> Lexer<'a> {
                     start += len;
                 }
 
-                '+' => token!(TokenType::Plus),
+                // '+' => or2!('=', TokenType::Plus, TokenType::PlusEqual),
+                // '-' => or2!('=', TokenType::Minus, TokenType::MinusEqual),
+                // '*' => or2!('=', TokenType::Star, TokenType::StarEqual),
+                // '/' => or2!('=', TokenType::Slash, TokenType::SlashEqual),
+                // '^' => or2!('=', TokenType::Caret, TokenType::CaretEqual),
+                // '&' => or2!(TokenType::And, (('&', TokenType::AndAnd), ('=', TokenType::AndEqual))),
+
                 '-' => token!(TokenType::Minus),
                 '/' => token!(TokenType::Slash),
                 '^' => token!(TokenType::Caret),
@@ -258,13 +278,13 @@ impl<'a> Lexer<'a> {
                 ',' => token!(TokenType::Comma),
                 '~' => token!(TokenType::Tilde),
                 '.' => token!(TokenType::Dot),
-                '*' => or2!('*', TokenType::Star, TokenType::StarStar),
-                '&' => or2!('&', TokenType::And, TokenType::AndAnd),
-                '|' => or2!('|', TokenType::Pipe, TokenType::PipePipe),
-                '=' => or2!('=', TokenType::Equal, TokenType::EqualEqual),
-                '<' => or2!('=', TokenType::LessThan, TokenType::LessThanEqual),
-                '>' => or2!('=', TokenType::GreaterThan, TokenType::GreaterThanEqual),
-                '!' => or2!('=', TokenType::Bang, TokenType::BangEqual),
+                // '*' => or2!('*', TokenType::Star, ((TokenType::StarStar))),
+                // '&' => or2!('&', TokenType::And, TokenType::AndAnd),
+                // '|' => or2!('|', TokenType::Pipe, TokenType::PipePipe),
+                '=' => or2!(TokenType::Equal, [('=', TokenType::EqualEqual)]),
+                '<' => or2!(TokenType::LessThan, [('=', TokenType::LessThanEqual)]),
+                '>' => or2!(TokenType::GreaterThan, [('=', TokenType::GreaterThanEqual)]),
+                '!' => or2!(TokenType::Bang, [('=', TokenType::BangEqual)]),
 
                 '0'..='9' => {
                     let mut is_double = false;
@@ -1117,7 +1137,7 @@ mod tests {
 
     #[test]
     fn test_lexer_symbols() {
-        let input = "[ ] { } ( ) + - * ** / & && | || ^ % ; < > <= >= = == ! != ,";
+        let input = "[ ] { } ( ) + - * ** / & && | || ^ % ; < > <= >= = == ! != , += -= *= /=";
         let lexer = Lexer::new("test", input);
 
         assert_eq!(
@@ -1150,6 +1170,10 @@ mod tests {
                 Token::new(TokenType::Bang, 1, 55, "!"),
                 Token::new(TokenType::BangEqual, 1, 57, "!="),
                 Token::new(TokenType::Comma, 1, 60, ","),
+                Token::new(TokenType::PlusEqual, 1, 62, "+="),
+                Token::new(TokenType::MinusEqual, 1, 65, "-="),
+                Token::new(TokenType::StarEqual, 1, 68, "*="),
+                Token::new(TokenType::SlashEqual, 1, 71, "/="),
             ],
         );
     }
